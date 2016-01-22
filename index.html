@@ -7,9 +7,304 @@
     <script src="https://cdn.mxpnl.com/libs/mixpanel-platform/build/mixpanel-platform.v0.latest.min.js"></script>
   </head>
   <body class="mixpanel-platform-body">
-    <h1>Hello, World!</h1>
+    <style>
+      h1 {
+        font-size: 25px;
+        font-weight: bold;
+        display: inline-block;
+        margin-bottom: 15px;
+      }
+      #dateSelect {
+        margin-top: 5px;
+        float: right;
+        display: inline-block;
+      }
+      p {
+        font-size: 16px;
+      }
+      .report {
+        margin: 15px 0;
+      }
+      .select {
+        margin-bottom: 15px;
+      }
+      .game {
+        margin: 0;
+      }
+      .gamelist {
+        width: 23%;
+        float: left;
+        margin-right: 2%;
+      }
+    </style>
+    <h1>Mobcrush Dashboard</h1>
+    <div id="dateSelect"></div>
+    <div class="report">
+      <p>1. Total Broadcast Watch Duration</p>
+      <div id="durationSelect" class="select"></div>
+      <div id="duration"></div>
+    </div>
+    <div class="report">
+      <p>2. DAU/MAU (App Open) - Total and Per Platform</p>
+      <div id="daumauSelect" class="select"></div>
+      <div id="daumau"></div>
+    </div>
+    <div class="report">
+      <p>4. Total Unique Broadcast Viewers</p>
+      <div id="totalUniqueSelect" class="select"></div>
+      <div id="totalUnique"></div>
+    </div>
+    <div class="report">
+      <p>5. App Install - Total and Per Platform</p>
+      <div id="installSelect" class="select"></div>
+      <div id="install"></div>
+      <p>5. Sign Up - Total and Per Platform</p>
+      <div id="signupSelect" class="select"></div>
+      <div id="signup"></div>
+      <p>5. Log In - Total and Per Platform</p>
+      <div id="loginSelect" class="select"></div>
+      <div id="login"></div>
+    </div>
+    <div class="report">
+      <p>6. New vs. Returning Users - Total and Per Platform</p>
+      <div id="newVReturningSelect" class="select"></div>
+      <div id="newVReturning"></div>
+    </div>
+    <div class="report">
+      <p>7. Total Broadcasts</p>
+      <div id="totalBroadcastsSelect" class="select"></div>
+      <div id="totalBroadcasts"></div>
+    </div>
+    <div class="report">
+      <p>8. Total Unique Broadcasters</p>
+      <div id="uniqueBroadcastsSelect" class="select"></div>
+      <div id="uniqueBroadcasts"></div>
+    </div>
+    <div class="report">
+      <p>9. Total Broadcast Duration</p>
+      <div id="totalBroadcastDurationSelect" class="select"></div>
+      <div id="totalBroadcastDuration"></div>
+    </div>
+    <div class="report">
+      <p>10. Total Broadcast Likes</p>
+      <div id="totalBroadcastLikesSelect" class="select"></div>
+      <div id="totalBroadcastLikes"></div>
+    </div>
+    <div class="report">
+      <p>11 & 13. Total Broadcast Follows</p>
+      <div id="totalBroadcastFollowSelect" class="select"></div>
+      <div id="totalBroadcastFollow"></div>
+    </div>
+    <div class="report">
+      <p>12. Total Broadcast Shares</p>
+      <div id="totalBroadcastShareSelect" class="select"></div>
+      <div id="totalBroadcastShare"></div>
+    </div>
+    <div class="report">
+      <p>14. Total Broadcast Chats</p>
+      <div id="totalBroadcastChatsSelect" class="select"></div>
+      <div id="totalBroadcastChats"></div>
+    </div>
+    <div class="report">
+      <p>15. Total Unique Games Broadcasted</p>
+      <div id="uniqueGamesBroadcastedSelect" class="select"></div>
+      <div id="uniqueGamesBroadcasted"></div>
+    </div>
+
     <script>
-      // Run queries and display results here
+      $(document).ready(function(){
+
+        var dateSelect = $('#dateSelect').MPDatepicker();
+        var dates = dateSelect.val();
+
+        // define dropdown options for Daily/Weekly/Monthly options
+        var intervalSelect = {items:[{value: "day", label: "Daily"},{value: "week", label: "Weekly"},{value: "month", label: "Monthly"}]}
+
+        // general overall and segmented function for each graph
+        function overallAndPlatform(timeStep, events, property, calcType, div, math, mathSeg) {
+          var promises = []
+          if (!math) {
+            var overall = new Promise(function(resolve,reject) {
+              MP.api.segment(events, {type: calcType, unit: timeStep, from: dates.from, to: dates.to}).done(function(result) {
+                resolve(result.values());
+              });
+            });          
+            if (!property) {
+              $.noop();
+            }
+            else {
+              var segmented = new Promise(function(resolve,reject) {
+                MP.api.segment(events, property, {type: calcType, unit: timeStep, from: dates.from, to: dates.to}).done(function(result) {
+                  resolve(result.values());
+                });
+              });
+            }
+          }
+          else {
+            var overall = new Promise(function(resolve,reject) {
+              MP.api.segment(events, property, {method: 'sum', unit: timeStep, type: calcType, from: dates.from, to: dates.to}).done(function(result){resolve(result.values())});
+            });
+            var segmented = new Promise(function(resolve,reject){
+              MP.api.query("/api/2.0/segmentation/multiseg", {event: events, inner: 'number(properties["' + property + '"])', outer: 'string(properties["' + mathSeg + '"])', action: 'sum', unit: timeStep, from: dates.from, to: dates.to}).done(function(result){resolve(result.data.values)})
+            });
+          }
+          promises.push(overall);
+          if (property) {
+            promises.push(segmented);
+          }
+          Promise.all(promises).then(function(data) {
+            div.MPChart({chartType: 'line'});
+            if (math) {
+              div.MPChart('addSeries', {"Overall": data[0]});
+            }
+            else {
+              div.MPChart('addSeries', data[0]);
+            }
+            if (property) {
+              div.MPChart('addSeries', data[1]);
+            }
+          });
+
+        }
+
+        function getData(selectDiv, events, property, calcType, div, math, mathSeg) {
+          selectDiv.on('change', function() {
+            var timeStep = selectDiv.val();
+            overallAndPlatform(timeStep, events, property, calcType, div, math, mathSeg);
+          })
+        }
+
+        function setupDiv(events, property, calcType, divIdBase, math, mathSeg) {
+          var div = $('#' + divIdBase);
+          var selectDiv = $('#' + divIdBase + 'Select');
+          selectDiv.MPSelect(intervalSelect);
+          getData(selectDiv, events, property, calcType, div, math, mathSeg);
+          overallAndPlatform(selectDiv.val(), events, property, calcType, div, math, mathSeg);
+        }
+
+        // #1
+        setupDiv(events='Watch Broadcast', property='Duration', calcType='general', divIdBase='duration', math=true, mathSeg='Platform');
+
+        // #2 & 3
+        setupDiv(events='App Open', property='Platform', calcType='unique', divIdBase='daumau');
+
+        // #4
+        setupDiv(events='Watch Broadcast', property='Platform', calcType='unique', divIdBase='totalUnique');
+
+        // #5
+        setupDiv(events='App Install', property='Platform', calcType='general', divIdBase='install');
+        setupDiv(events='Sign Up', property='Platform', calcType='general', divIdBase='signup');
+        setupDiv(events='Log In', property='Platform', calcType='general', divIdBase='login');
+
+        // #6 calculated separately because we're combining two events (App Install and App Open) into one graph
+        $('#newVReturningSelect').MPSelect(intervalSelect)
+        function getData6(timeStep) {
+          var promises = []
+          var newUsers = new Promise(function(resolve,reject) {
+            MP.api.segment("App Install", "Platform", {unit: timeStep}).done(function(result){
+              var newResult = {}
+              for (key in result.values()) {
+                newResult['New Users: ' + key] = result.values()[key]
+              }
+              resolve(newResult);
+            });
+          })
+          var returningUsers = new Promise(function(resolve,reject){
+            MP.api.segment("App Open", "Platform", {unit: timeStep, type:'unique'}).done(function(result){
+              var returningResult = {}
+              for (key in result.values()) {
+                returningResult['Returning Users: ' + key] = result.values()[key]
+              }
+              resolve(returningResult);
+            });
+          });
+          promises.push(newUsers);
+          promises.push(returningUsers);
+          Promise.all(promises).then(function(data) {
+            $("#newVReturning").MPChart({chartType: 'line'});
+            $("#newVReturning").MPChart('addSeries', data[0]);
+            $("#newVReturning").MPChart('addSeries', data[1]);
+          })
+        }
+        getData6($('#newVReturningSelect').val());
+        $('#newVReturningSelect').on('change',function(){
+          var timeStep = $('#newVReturningSelect').val();
+          getData6(timeStep);
+        })
+
+        // #7
+        setupDiv(events='Broadcast', property=false, calcType='general', divIdBase='totalBroadcasts');
+
+        // #8
+        setupDiv(events='Broadcast', property=false, calcType='unique', divIdBase='uniqueBroadcasts');
+
+        // #9
+        setupDiv(events='Broadcast', property='Duration', calcType='general', divIdBase='totalBroadcastDuration', math=true, mathSeg='Broadcast Platform');
+
+        // #10 
+        setupDiv(events='Broadcast', property='Total Likes', calcType='general', divIdBase='totalBroadcastLikes', math=true, mathSeg='Broadcast Platform');
+
+        // #11 & 13
+        setupDiv(events='Broadcast', property='Total Follows', calcType='general', divIdBase='totalBroadcastFollow', math=true, mathSeg='Broadcast Platform');
+
+        // #12
+        setupDiv(events='Broadcast', property='Total Shares', calcType='general', divIdBase='totalBroadcastShare', math=true, mathSeg='Broadcast Platform');
+
+        // #14
+        setupDiv(events='Broadcast', property='Total Chat Messages', calcType='general', divIdBase='totalBroadcastChats', math=true, mathSeg='Broadcast Platform');
+
+        // #15 calculated separately
+        function getUniqueGames() {
+          MP.api.segment('Broadcast', 'Game', {limit: 255, from: dates.from, to: dates.to, unit: 'day'}).done(function(data) {
+            var games = [];
+            for (value in data.values()) {
+              games.push(value);
+            }
+            $('<div class="gamelist" id="dateRange"></div>').appendTo('body');
+            $('<p style="font-weight: bold;"></p>').appendTo('#dateRange.gamelist').text(games.length + ' Unique Games Broadcasted from ' + String(dates.from).split(' ').slice(1,4).join(' ') + ' to ' + String(dates.to).split(' ').slice(1,4).join(' ') + ':');
+            for (game in games) {
+              $('<p class="game"></p>').appendTo('#dateRange.gamelist').text(games[game]);
+            }
+          });
+          MP.api.segment('Broadcast', 'Game', {limit: 255, from: moment().subtract(30, 'days'), to: moment(), unit: 'day'}).done(function(data) {
+            var games = [];
+            for (value in data.values()) {
+              games.push(value);
+            }
+            $('<div class="gamelist" id="month"></div>').appendTo('body');
+            $('<p style="font-weight: bold;"></p>').appendTo('#month.gamelist').text(games.length + ' Unique Games Broadcasted in the Last Month:');
+            for (game in games) {
+              $('<p class="game"></p>').appendTo('#month.gamelist').text(games[game]);
+            }
+          });
+          MP.api.segment('Broadcast', 'Game', {limit: 255, from: moment().subtract(7, 'days'), to: moment(), unit: 'day'}).done(function(data) {
+            var games = [];
+            for (value in data.values()) {
+              games.push(value);
+            }
+            $('<div class="gamelist" id="week"></div>').appendTo('body');
+            $('<p style="font-weight: bold;"></p>').appendTo('#week.gamelist').text(games.length + ' Unique Games Broadcasted in the Last Week:');
+            for (game in games) {
+              $('<p class="game"></p>').appendTo('#week.gamelist').text(games[game]);
+            }
+          });          
+          MP.api.segment('Broadcast', 'Game', {limit: 255, from: moment().subtract(1, 'days'), to: moment(), unit: 'day'}).done(function(data) {
+            var games = [];
+            for (value in data.values()) {
+              games.push(value);
+            }
+            $('<div class="gamelist" id="day"></div>').appendTo('body');
+            $('<p style="font-weight: bold;"></p>').appendTo('#day.gamelist').text(games.length + ' Unique Games Broadcasted in the Last Day:');
+            for (game in games) {
+              $('<p class="game"></p>').appendTo('#day.gamelist').text(games[game]);
+            }
+          });          
+        }
+        getUniqueGames();
+
+      });
+
     </script>
+
   </body>
 </html>
