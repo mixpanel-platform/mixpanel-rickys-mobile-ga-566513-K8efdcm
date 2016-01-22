@@ -37,11 +37,11 @@
         margin-right: 2%;
       }
     </style>
-    <h1>Mobcrush Dashboard</h1>
+    <h1>Ricky Board</h1>
     <div id="dateSelect"></div>
     <div class="report">
-      <p>1. Total Broadcast Watch Duration</p>
-      <div id="durationSelect" class="select"></div>
+      <p>1. App Install</p>
+      <div id="appInstall" class="select"></div>
       <div id="duration"></div>
     </div>
     <div class="report">
@@ -117,8 +117,8 @@
         var dateSelect = $('#dateSelect').MPDatepicker();
         var dates = dateSelect.val();
 
-        // define dropdown options for Daily/Weekly/Monthly options
-        var intervalSelect = {items:[{value: "day", label: "Daily"},{value: "week", label: "Weekly"},{value: "month", label: "Monthly"}]}
+        // define dropdown options for Hourly/Daily/Weekly/Monthly options
+        var intervalSelect = {items:[{value: "day", label: "Daily"},{value: "week", label: "Weekly"},{value: "month", label: "Monthly"},{value: "hour", label: Hourly}]}
 
         // general overall and segmented function for each graph
         function overallAndPlatform(timeStep, events, property, calcType, div, math, mathSeg) {
